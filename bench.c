@@ -4,7 +4,9 @@
 #include <stdio.h>
 #include <sys/resource.h>
 #include <sys/time.h>
+#ifdef __cplusplus
 #include <algorithm>
+#endif
 
 #define KSORT2_CHECK(prefix, type_t, __sort_lt) \
 	int prefix##_is_sorted(type_t *st, type_t *en) \
@@ -62,11 +64,6 @@
 static int int_lt(const void *a, const void *b)
 {
 	return (*(const int*)a < *(const int*)b);
-}
-
-static int int_cmp(const void *a, const void *b)
-{
-	return (*(const int*)a > *(const int*)b) - (*(const int*)a < *(const int*)b);
 }
 
 typedef int func_lt(const void *a, const void *b);
@@ -148,10 +145,6 @@ double cputime(void)
 	return r.ru_utime.tv_sec + r.ru_stime.tv_sec + 1e-6 * (r.ru_utime.tv_usec + r.ru_stime.tv_usec);
 }
 
-extern "C" {
-int mergesort_alt(void *base, size_t nmemb, size_t size, int (*cmp)(const void *, const void *));
-}
-
 int main(int argc, char *argv[])
 {
 	int32_t i, N = 50000001, *a, *tmp;
@@ -179,15 +172,7 @@ int main(int argc, char *argv[])
 	t = cputime() - t;
 	printf("merge sort void [%d]: %lf sec\n", sc_is_sorted(a, a + N), t);
 
-	for (i = 0, x = 1; i < N; ++i) {
-		a[i] = (int32_t)x;
-		x = splitmix64(x);
-	}
-	t = cputime();
-	mergesort_alt(a, N, sizeof(*a), int_cmp);
-	t = cputime() - t;
-	printf("FreeBSD mergesort void [%d]: %lf sec\n", sc_is_sorted(a, a + N), t);
-
+#ifdef __cplusplus
 	for (i = 0, x = 1; i < N; ++i) {
 		a[i] = (int32_t)x;
 		x = splitmix64(x);
@@ -196,6 +181,7 @@ int main(int argc, char *argv[])
 	std::stable_sort(a, a + N);
 	t = cputime() - t;
 	printf("std::stable_sort [%d]: %lf sec\n", sc_is_sorted(a, a + N), t);
+#endif
 
 	free(tmp); free(a);
 	return 0;
