@@ -1,3 +1,5 @@
+Timing for sorting 50 million random `int32_t`:
+
 |CPU|Compiler|Mode|macro|void\*|std::stable\_sort|
 |:--|:-------|:---|----:|-----:|----------------:|
 |Apple M1         |clang-14.0.0|C  |3.4| 9.6|   |
