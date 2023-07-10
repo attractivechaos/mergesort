@@ -1,26 +1,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <stdio.h>
-#include <sys/resource.h>
-#include <sys/time.h>
-#ifdef __cplusplus
-#include <algorithm>
-#endif
 
 #ifndef STEP0
 #define STEP0 1
 #endif
-
-#define KSORT2_CHECK(prefix, type_t, __sort_lt) \
-	int prefix##_is_sorted(type_t *st, type_t *en) \
-	{ \
-		type_t *p; \
-		for (p = st + 1; p < en; ++p) \
-			if (__sort_lt(*p, *(p-1))) \
-				return 0; \
-		return 1; \
-	}
 
 #define KSORT2_INSERTION(prefix, type_t, __sort_lt) \
 	void prefix##_insertion_sort(type_t *beg, type_t *end) \
