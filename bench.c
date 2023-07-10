@@ -8,6 +8,10 @@
 #include <algorithm>
 #endif
 
+#ifndef STEP0
+#define STEP0 1
+#endif
+
 #define KSORT2_CHECK(prefix, type_t, __sort_lt) \
 	int prefix##_is_sorted(type_t *st, type_t *en) \
 	{ \
@@ -18,43 +22,46 @@
 		return 1; \
 	}
 
+#define KSORT2_INSERTION(prefix, type_t, __sort_lt) \
+	void prefix##_insertion_sort(type_t *beg, type_t *end) \
+	{ \
+		type_t *i; \
+		for (i = beg + 1; i < end; ++i) { \
+			if (__sort_lt(*i, *(i-1))) { \
+				type_t *j, tmp = *i; \
+				for (j = i; j > beg && __sort_lt(tmp, *(j-1)); --j) \
+					*j = *(j - 1); \
+				*j = tmp; \
+			} \
+		} \
+	}
+
 #define KSORT2_MERGE(prefix, type_t, __sort_lt) \
 	void prefix##_merge_sort(type_t *st, type_t *en, type_t *tmp) \
 	{ \
 		type_t *a2[2], *a, *b; \
-		size_t n = en - st; \
-		int curr, shift; \
+		size_t n = en - st, step = STEP0; \
+		int curr; \
+		if (step > 1) { /* insertion sort to replace first few rounds of merge sort */ \
+			for (a = st; a < en - step; a += step) \
+				prefix##_insertion_sort(a, a + step); \
+			prefix##_insertion_sort(a, en); \
+		} \
 		a2[0] = st, a2[1] = tmp; \
-		for (curr = 0, shift = 0; (1ul<<shift) < n; ++shift) { \
+		for (curr = 0; step < n; step += step) { \
+			size_t i; \
 			a = a2[curr]; b = a2[1-curr]; \
-			if (shift == 0) { /* the first round; not necessary but ~5% faster this way */ \
-				type_t *p = b, *i, *eb = a + (n>>1<<1); \
-				for (i = a; i < eb; i += 2) { \
-					if (__sort_lt(*(i+1), *i)) { \
-						*p++ = *(i+1); *p++ = *i; \
-					} else { \
-						*p++ = *i; *p++ = *(i+1); \
-					} \
+			for (i = 0; i < n; i += step<<1) { \
+				type_t *p, *j, *k; \
+				type_t *ea = n < i + step? a + n : a + i + step; \
+				type_t *eb = n < i + step? a : a + (n < i + (step<<1)? n : i + (step<<1)); \
+				j = a + i; k = a + i + step; p = b + i; \
+				while (j < ea && k < eb) { \
+					if (__sort_lt(*k, *j)) *p++ = *k++; \
+					else *p++ = *j++; \
 				} \
-				if (n&1) *p++ = *i; \
-			} else { /* the general solution */ \
-				size_t i, step = 1ul<<shift; \
-				for (i = 0; i < n; i += step<<1) { \
-					type_t *p, *j, *k, *ea, *eb; \
-					if (n < i + step) { \
-						ea = a + n; eb = a; \
-					} else { \
-						ea = a + i + step; \
-						eb = a + (n < i + (step<<1)? n : i + (step<<1)); \
-					} \
-					j = a + i; k = a + i + step; p = b + i; \
-					while (j < ea && k < eb) { \
-						if (__sort_lt(*k, *j)) *p++ = *k++; \
-						else *p++ = *j++; \
-					} \
-					while (j < ea) *p++ = *j++; \
-					while (k < eb) *p++ = *k++; \
-				} \
+				while (j < ea) *p++ = *j++; \
+				while (k < eb) *p++ = *k++; \
 			} \
 			curr = 1 - curr; \
 		} \
@@ -68,55 +75,58 @@ static int int_lt(const void *a, const void *b)
 
 typedef int func_lt(const void *a, const void *b);
 
+void insertion_sort_void(size_t n, size_t len, void *a_, func_lt lt)
+{
+	uint8_t tmp[len], *a = (uint8_t*)a_;
+	size_t i, j;
+	for (i = len; i < n * len; i += len) {
+		if (lt(&a[i], &a[i-len])) {
+			memcpy(tmp, &a[i], len);
+			for (j = i; j > 0 && lt(tmp, &a[j-len]); j -= len)
+				memcpy(&a[j], &a[j-len], len);
+			memcpy(&a[j], tmp, len);
+		}
+	}
+}
+
 void merge_sort_void(size_t n, size_t len, void *array, void *tmp, func_lt lt)
 {
-	void *a2[2], *a, *b;
-	int curr, shift;
-	a2[0] = array, a2[1] = tmp;
-	for (curr = 0, shift = 0; (1ul<<shift) < n; ++shift) {
+	uint8_t *a2[2], *a = (uint8_t*)array, *b;
+	size_t i, step = STEP0;
+	int curr;
+	if (step > 1) {
+		for (i = 0; i < n - step; i += step)
+			insertion_sort_void(step, len, &a[i * len], lt);
+		insertion_sort_void(n - i, len, &a[i * len], lt);
+	}
+	a2[0] = (uint8_t*)array, a2[1] = (uint8_t*)tmp;
+	for (curr = 0; step < n; step += step) {
 		a = a2[curr]; b = a2[1-curr];
-		if (shift == 0) {
-			uint8_t *p = (uint8_t*)b, *i, *eb = (uint8_t*)a + (n>>1<<1) * len;
-			for (i = (uint8_t*)a; i < eb; i += 2 * len) {
-				if (lt(i + len, i)) {
-					memcpy(p, i + len, len);
-					p += len;
-					memcpy(p, i, len);
-					p += len;
-				} else {
-					memcpy(p, i, len * 2);
-					p += 2 * len;
-				}
+		for (i = 0; i < n; i += step<<1) {
+			uint8_t *p, *j, *k, *ea, *eb;
+			if (n < i + step) {
+				ea = a + n * len; eb = a;
+			} else {
+				ea = a + (i + step) * len;
+				eb = a + (n < i + (step<<1)? n : i + (step<<1)) * len;
 			}
-			if (n&1) memcpy(p, i, len);
-		} else {
-			size_t i, step = 1ul<<shift;
-			for (i = 0; i < n; i += step<<1) {
-				uint8_t *p, *j, *k, *ea, *eb;
-				if (n < i + step) {
-					ea = (uint8_t*)a + n * len; eb = (uint8_t*)a;
+			j = a + i * len; k = a + (i + step) * len; p = b + i * len;
+			while (j < ea && k < eb) {
+				if (lt(k, j)) {
+					memcpy(p, k, len);
+					p += len, k += len;
 				} else {
-					ea = (uint8_t*)a + (i + step) * len;
-					eb = (uint8_t*)a + (n < i + (step<<1)? n : i + (step<<1)) * len;
-				}
-				j = (uint8_t*)a + i * len; k = (uint8_t*)a + (i + step) * len; p = (uint8_t*)b + i * len;
-				while (j < ea && k < eb) {
-					if (lt(k, j)) {
-						memcpy(p, k, len);
-						p += len, k += len;
-					} else {
-						memcpy(p, j, len);
-						p += len, j += len;
-					}
-				}
-				while (j < ea) {
 					memcpy(p, j, len);
 					p += len, j += len;
 				}
-				while (k < eb) {
-					memcpy(p, k, len);
-					p += len, k += len;
-				}
+			}
+			while (j < ea) {
+				memcpy(p, j, len);
+				p += len, j += len;
+			}
+			while (k < eb) {
+				memcpy(p, k, len);
+				p += len, k += len;
 			}
 		}
 		curr = 1 - curr;
@@ -125,6 +135,7 @@ void merge_sort_void(size_t n, size_t len, void *array, void *tmp, func_lt lt)
 }
 
 #define ks_generic_lt(a, b) ((a) < (b))
+KSORT2_INSERTION(sc, int32_t, ks_generic_lt)
 KSORT2_MERGE(sc, int32_t, ks_generic_lt)
 KSORT2_CHECK(sc, int32_t, ks_generic_lt)
 

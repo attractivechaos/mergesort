@@ -1,11 +1,13 @@
 CC=			gcc
-CFLAGS=		-g -Wall -O3
+CFLAGS=		-Wall -O3
 
-mergesort-bench:bench.o
-		$(CC) -o $@ $<
+all:ms-bench1 ms-bench32
 
-bench.o:bench.c
-		$(CC) -c $(CFLAGS) $< -o $@
+ms-bench1:bench.c
+		$(CC) $(CFLAGS) -DSTEP0=1 $< -o $@
+
+ms-bench32:bench.c
+		$(CC) $(CFLAGS) -DSTEP0=32 $< -o $@
 
 clean:
-		rm -fr *.o a.out $(PROG) *~ *.a *.dSYM mergesort-bench
+		rm -fr *.o a.out $(PROG) *~ *.a *.dSYM ms-bench*
