@@ -22,52 +22,6 @@
 		return 1; \
 	}
 
-#define KSORT2_INSERTION(prefix, type_t, __sort_lt) \
-	void prefix##_insertion_sort(type_t *beg, type_t *end) \
-	{ \
-		type_t *i; \
-		for (i = beg + 1; i < end; ++i) { \
-			if (__sort_lt(*i, *(i-1))) { \
-				type_t *j, tmp = *i; \
-				for (j = i; j > beg && __sort_lt(tmp, *(j-1)); --j) \
-					*j = *(j - 1); \
-				*j = tmp; \
-			} \
-		} \
-	}
-
-#define KSORT2_MERGE(prefix, type_t, __sort_lt) \
-	void prefix##_merge_sort(type_t *st, type_t *en, type_t *tmp) \
-	{ \
-		type_t *a2[2], *a, *b; \
-		size_t n = en - st, step = STEP0; \
-		int curr; \
-		if (step > 1) { /* insertion sort to replace first few rounds of merge sort */ \
-			for (a = st; a < en - step; a += step) \
-				prefix##_insertion_sort(a, a + step); \
-			prefix##_insertion_sort(a, en); \
-		} \
-		a2[0] = st, a2[1] = tmp; \
-		for (curr = 0; step < n; step += step) { \
-			size_t i; \
-			a = a2[curr]; b = a2[1-curr]; \
-			for (i = 0; i < n; i += step<<1) { \
-				type_t *p, *j, *k; \
-				type_t *ea = n < i + step? a + n : a + i + step; \
-				type_t *eb = n < i + step? a : a + (n < i + (step<<1)? n : i + (step<<1)); \
-				j = a + i; k = a + i + step; p = b + i; \
-				while (j < ea && k < eb) { \
-					if (__sort_lt(*k, *j)) *p++ = *k++; \
-					else *p++ = *j++; \
-				} \
-				while (j < ea) *p++ = *j++; \
-				while (k < eb) *p++ = *k++; \
-			} \
-			curr = 1 - curr; \
-		} \
-		if (curr == 1) memcpy(st, tmp, n * sizeof(*st)); \
-	}
-
 static int int_lt(const void *a, const void *b)
 {
 	return (*(const int*)a < *(const int*)b);
@@ -75,7 +29,7 @@ static int int_lt(const void *a, const void *b)
 
 typedef int func_lt(const void *a, const void *b);
 
-void insertion_sort_void(size_t n, size_t len, void *a_, func_lt lt)
+static void insertion_sort_void(size_t n, size_t len, void *a_, func_lt lt)
 {
 	uint8_t tmp[len], *a = (uint8_t*)a_;
 	size_t i, j;
@@ -89,7 +43,7 @@ void insertion_sort_void(size_t n, size_t len, void *a_, func_lt lt)
 	}
 }
 
-void merge_sort_void(size_t n, size_t len, void *array, void *tmp, func_lt lt)
+static void merge_sort_void(size_t n, size_t len, void *array, void *tmp, func_lt lt)
 {
 	uint8_t *a2[2], *a = (uint8_t*)array, *b;
 	size_t i, step = STEP0;
@@ -135,9 +89,11 @@ void merge_sort_void(size_t n, size_t len, void *array, void *tmp, func_lt lt)
 }
 
 #define ks_generic_lt(a, b) ((a) < (b))
-KSORT2_INSERTION(sc, int32_t, ks_generic_lt)
-KSORT2_MERGE(sc, int32_t, ks_generic_lt)
+//KSORT2_INSERTION(sc, int32_t, ks_generic_lt)
+//KSORT2_MERGE(sc, int32_t, ks_generic_lt)
 KSORT2_CHECK(sc, int32_t, ks_generic_lt)
+
+extern void sc_merge_sort(int32_t*, int32_t*, int32_t*);
 
 #define MALLOC(type, cnt) ((type*)malloc((cnt) * sizeof(type)))
 
